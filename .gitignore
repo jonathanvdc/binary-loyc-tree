@@ -1,0 +1,9 @@
+# Preferences
+
+*.userprefs
+
+
+# Binaries
+
+bin/
+obj/
