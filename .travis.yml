@@ -1,0 +1,11 @@
+language: csharp
+solution: Loyc.Binary.sln
+install:
+    # Restore NuGet packages first
+    - nuget restore Loyc.Binary.sln
+script:
+    # Build the Loyc libraries in release mode, for all possible configurations.
+    - xbuild /p:Configuration=Release Loyc.Binary.sln
+
+    # Run the tests
+    - mono Loyc.Binary.Tests/bin/Release/Loyc.Binary.Tests.exe
