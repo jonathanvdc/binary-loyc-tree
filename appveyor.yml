@@ -12,13 +12,13 @@ build_script:
     - ps: if ($env:APPVEYOR_REPO_TAG -eq $True) { $env:PKG_VERSION = $env:SEMVER; } else { $env:PKG_VERSION = "$($env:SEMVER)-ci$($env:APPVEYOR_BUILD_NUMBER)"; }
     - echo %PKG_VERSION%
 
-    # Build the Loyc libraries in release mode, for all possible configurations.
+    # Build the Loyc.Binary library in release mode.
     - msbuild /p:Configuration=Release Loyc.Binary.sln
 
 after_build:
-    # Package the LoycCore libraries
+    # Package the Loyc.Binary library
     - nuget pack -Version %PKG_VERSION% Loyc.Binary.nuspec
-    # Package ends up in LoycCore.$SEMVER.nupkg
+    # Package ends up in Loyc.Binary.$SEMVER.nupkg
 
 test_script:
     - Loyc.Binary.Tests\bin\Release\Loyc.Binary.Tests.exe
