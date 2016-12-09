@@ -19,9 +19,9 @@ namespace Loyc.Binary
         /// Creates a new loyc binary reader from the given 
         /// binary reader and set of decoders and template parsers.
         /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="encodings">A mapping of literal node encodings to decoders.</param>
-        /// <param name="templateParsers"></param>
+        /// <param name="reader">The binary reader that reads raw data.</param>
+        /// <param name="literalEncoding">A dictionary of possible literal encodings.</param>
+        /// <param name="templateParsers">A dictionary of possible template encodings.</param>
         public LoycBinaryReader(BinaryReader reader,
             IReadOnlyDictionary<NodeEncodingType, Func<LoycBinaryReader, ReaderState, LNode>> literalEncoding,
             IReadOnlyDictionary<NodeTemplateType, Func<LoycBinaryReader, NodeTemplate>> templateParsers)
@@ -36,8 +36,8 @@ namespace Loyc.Binary
         /// input stream and set of decoders and template parsers.
         /// </summary>
         /// <param name="inputStream"></param>
-        /// <param name="encodings">A mapping of literal node encodings to decoders.</param>
-        /// <param name="templateParsers"></param>
+        /// <param name="literalEncoding">A dictionary of possible literal encodings.</param>
+        /// <param name="templateParsers">A dictionary of possible template encodings.</param>
         public LoycBinaryReader(Stream inputStream,
             IReadOnlyDictionary<NodeEncodingType, Func<LoycBinaryReader, ReaderState, LNode>> literalEncoding,
             IReadOnlyDictionary<NodeTemplateType, Func<LoycBinaryReader, NodeTemplate>> templateParsers)
@@ -152,7 +152,6 @@ namespace Loyc.Binary
         /// <summary>
         /// Reads a LEB128 variable-length unsigned integer from the input stream.
         /// </summary>
-        /// <param name="Value"></param>
         public uint ReadULeb128()
         {
             // C# translation of code borrowed from Wikipedia article:
@@ -402,6 +401,14 @@ namespace Loyc.Binary
 
         #region IDisposable Implementation
 
+        /// <summary>
+        /// Releases all resource used by the <see cref="Loyc.Binary.LoycBinaryReader"/> object.
+        /// </summary>
+        /// <remarks>Call <see cref="Dispose"/> when you are finished using the <see cref="Loyc.Binary.LoycBinaryReader"/>. The
+        /// <see cref="Dispose"/> method leaves the <see cref="Loyc.Binary.LoycBinaryReader"/> in an unusable state.
+        /// After calling <see cref="Dispose"/>, you must release all references to the
+        /// <see cref="Loyc.Binary.LoycBinaryReader"/> so the garbage collector can reclaim the memory that the
+        /// <see cref="Loyc.Binary.LoycBinaryReader"/> was occupying.</remarks>
         public void Dispose()
         {
             Reader.Dispose();

@@ -13,7 +13,15 @@ namespace Loyc.Binary
     /// </summary>
     public class BinaryNodeEncoder
     {
-        public BinaryNodeEncoder(NodeEncodingType EncodingType, Action<LoycBinaryWriter, WriterState, LNode> Encode)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.BinaryNodeEncoder"/> class
+        /// that encodes the given encoding type using the given function.
+        /// </summary>
+        /// <param name="EncodingType">The encoding type.</param>
+        /// <param name="Encode">The function that encodes nodes.</param>
+        public BinaryNodeEncoder(
+            NodeEncodingType EncodingType, 
+            Action<LoycBinaryWriter, WriterState, LNode> Encode)
         {
             this.EncodingType = EncodingType;
             this.Encode = Encode;

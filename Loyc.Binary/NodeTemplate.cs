@@ -31,17 +31,21 @@ namespace Loyc.Binary
         /// <summary>
         /// Instantiates this template.
         /// </summary>
-        /// <param name="Arguments"></param>
+        /// <param name="State">The current reader state.</param>
+        /// <param name="Arguments">The list of argument nodes for this template.</param>
         /// <returns></returns>
         public abstract LNode Instantiate(ReaderState State, IEnumerable<LNode> Arguments);
 
         /// <summary>
         /// Writes this node template's data to the given writer.
         /// </summary>
-        /// <param name="Writer"></param>
+        /// <param name="Writer">The writer to use write the node template's data to.</param>
         public abstract void Write(LoycBinaryWriter Writer);
 
+        /// <inheritdoc/>
         public abstract override bool Equals(object obj);
+
+        /// <inheritdoc/>
         public abstract override int GetHashCode();
     }
 }

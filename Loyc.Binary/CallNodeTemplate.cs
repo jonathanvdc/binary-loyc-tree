@@ -29,16 +29,20 @@ namespace Loyc.Binary
         }
 
         private IReadOnlyList<NodeEncodingType> argTypes;
+
+        /// <inheritdoc/>
         public override IReadOnlyList<NodeEncodingType> ArgumentTypes
         {
             get { return argTypes; }
         }
 
+        /// <inheritdoc/>
         public override NodeTemplateType TemplateType
         {
             get { return NodeTemplateType.CallNode; }
         }
 
+        /// <inheritdoc/>
         public override LNode Instantiate(ReaderState State, IEnumerable<LNode> Arguments)
         {
             return State.NodeFactory.Call(Arguments.First(), Arguments.Skip(1));
@@ -63,11 +67,13 @@ namespace Loyc.Binary
             Writer.WriteList(ArgumentTypes, Writer.WriteEncodingType);
         }
 
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return obj is CallNodeTemplate && ArgumentTypes.SequenceEqual(((CallNodeTemplate)obj).ArgumentTypes);
         }
 
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             int result = (int)TemplateType;

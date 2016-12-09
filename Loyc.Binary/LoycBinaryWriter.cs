@@ -346,6 +346,11 @@ namespace Loyc.Binary
             }
         }
 
+        /// <summary>
+        /// Writes the given list of loyc nodes to the current output stream,
+        /// encoded as a single binary loyc tree file.
+        /// </summary>
+        /// <param name="Nodes">The list of nodes to write.</param>
         public void WriteFile(IReadOnlyList<LNode> Nodes)
         {
             WriteMagic();
@@ -354,6 +359,14 @@ namespace Loyc.Binary
 
         #endregion
 
+        /// <summary>
+        /// Releases all resource used by the <see cref="Loyc.Binary.LoycBinaryWriter"/> object.
+        /// </summary>
+        /// <remarks>Call <see cref="Dispose"/> when you are finished using the <see cref="Loyc.Binary.LoycBinaryWriter"/>. The
+        /// <see cref="Dispose"/> method leaves the <see cref="Loyc.Binary.LoycBinaryWriter"/> in an unusable state.
+        /// After calling <see cref="Dispose"/>, you must release all references to the
+        /// <see cref="Loyc.Binary.LoycBinaryWriter"/> so the garbage collector can reclaim the memory that the
+        /// <see cref="Loyc.Binary.LoycBinaryWriter"/> was occupying.</remarks>
         public void Dispose()
         {
             Writer.Dispose();
