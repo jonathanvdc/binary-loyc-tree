@@ -14,13 +14,29 @@ namespace Loyc.Binary
     /// </summary>
     public class CallNodeTemplate : NodeTemplate
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.CallNodeTemplate"/> class
+        /// from the given non-empty list of template argument node encodings. The first encoding
+        /// is interpreted as the call target's encoding. The remainder of the encoding list
+        /// describes how the call's argument nodes are encoded.
+        /// </summary>
+        /// <param name="templateArgumentTypes">The list of template argument encodings.</param>
         public CallNodeTemplate(IReadOnlyList<NodeEncodingType> templateArgumentTypes)
         {
             Debug.Assert(Enumerable.Any(templateArgumentTypes));
 
             argTypes = templateArgumentTypes;
         }
-        public CallNodeTemplate(NodeEncodingType callTargetType, IReadOnlyList<NodeEncodingType> callArgumentTypes)
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.CallNodeTemplate"/> class
+        /// from the specified call target and call argument encodings.
+        /// </summary>
+        /// <param name="callTargetType">The encoding of the call target node.</param>
+        /// <param name="callArgumentTypes">The encoding of the call's arguments.</param>
+        public CallNodeTemplate(
+            NodeEncodingType callTargetType, 
+            IReadOnlyList<NodeEncodingType> callArgumentTypes)
         {
             var argTyList = new List<NodeEncodingType>();
             argTyList.Add(callTargetType);

@@ -15,23 +15,70 @@ namespace Loyc.Binary
     {
         #region Constructors
 
-        public LoycBinaryWriter(BinaryWriter writer, IReadOnlyDictionary<Type, BinaryNodeEncoder> encoders)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given binary writer, and literals are encoded using
+        /// the given map of encoding functions. 
+        /// </summary>
+        /// <param name="writer">The binary writer to write data to.</param>
+        /// <param name="encoders">A map of literal types to literal encoders.</param>
+        public LoycBinaryWriter(
+            BinaryWriter writer, 
+            IReadOnlyDictionary<Type, BinaryNodeEncoder> encoders)
         {
             Writer = writer;
             LiteralEncoders = encoders;
         }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given output stream, and literals are encoded using
+        /// the given map of encoding functions. 
+        /// </summary>
+        /// <param name="outputStream">The output stream to write data to.</param>
+        /// <param name="encoders">A map of literal types to literal encoders.</param>
         public LoycBinaryWriter(Stream outputStream, IReadOnlyDictionary<Type, BinaryNodeEncoder> encoders)
             : this(new BinaryWriter(outputStream), encoders)
         { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given binary writer, and nodes are encoded using
+        /// the given BLT writer's encoders.
+        /// </summary>
+        /// <param name="writer">The binary writer to write data to.</param>
+        /// <param name="other">The BLT writer whose encodings are to be used.</param>
         public LoycBinaryWriter(BinaryWriter writer, LoycBinaryWriter other)
             : this(writer, other.LiteralEncoders)
         { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given output stream, and nodes are encoded using
+        /// the given BLT writer's encoders.
+        /// </summary>
+        /// <param name="outputStream">The output stream to write data to.</param>
+        /// /// <param name="other">The BLT writer whose encodings are to be used.</param>
         public LoycBinaryWriter(Stream outputStream, LoycBinaryWriter other)
             : this(new BinaryWriter(outputStream), other)
         { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given binary writer, and nodes are encoded using the
+        /// default encoders.
+        /// </summary>
+        /// <param name="writer">The binary writer to write data to.</param>
         public LoycBinaryWriter(BinaryWriter writer)
             : this(writer, DefaultEncoders)
         { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Loyc.Binary.LoycBinaryWriter"/> class.
+        /// Data is written to the given output stream, and nodes are encoded using the
+        /// default encoders.
+        /// </summary>
+        /// <param name="outputStream">The output stream to write data to.</param>
         public LoycBinaryWriter(Stream outputStream)
             : this(new BinaryWriter(outputStream))
         { }
