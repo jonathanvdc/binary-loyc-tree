@@ -12,7 +12,7 @@ using System.Numerics;
 namespace Loyc.Binary.Tests
 {
     /// <summary>
-    /// Unit tests that test binary loyc tree LES round-trips.
+    /// Unit tests that test binary loyc tree round-trips.
     /// </summary>
     [TestFixture]
     public class RoundTripTests
