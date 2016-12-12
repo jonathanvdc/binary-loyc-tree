@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Numerics;
 
 namespace Loyc.Binary
 {
@@ -127,6 +128,11 @@ namespace Loyc.Binary
                     { typeof(char), BinaryNodeEncoder.CreateLiteralEncoder<char>(NodeEncodingType.Char, (writer, value) => writer.Write(value)) },
                     { typeof(bool), BinaryNodeEncoder.CreateLiteralEncoder<bool>(NodeEncodingType.Boolean, (writer, value) => writer.Write(value)) },
                     { typeof(string), BinaryNodeEncoder.CreateLiteralEncoder<string>(NodeEncodingType.String, (writer, state, value) => writer.WriteReference(state, value)) },
+                    { 
+                        typeof(BigInteger), 
+                        BinaryNodeEncoder.CreateLiteralEncoder<BigInteger>(
+                            NodeEncodingType.BigInteger, (writer, state, value) => writer.WriteBigInteger(value)) 
+                    },
                     { typeof(@void), new BinaryNodeEncoder(NodeEncodingType.Void, (writer, state, node) => { }) }
                 };
             }
@@ -152,6 +158,22 @@ namespace Loyc.Binary
                     b |= 0x80;
                 Writer.Write(b);
             } while (Value != 0);
+        }
+
+        /// <summary>
+        /// Writes a BigInteger to the output stream.
+        /// </summary>
+        /// <param name="Value">
+        /// The BigInteger to write to the output stream.
+        /// </param>
+        public void WriteBigInteger(BigInteger Value)
+        {
+            byte[] byteArr = Value.ToByteArray();
+            // First, write a prefix that encodes
+            // the size of the BigInteger's byte array.
+            WriteULeb128((uint)byteArr.Length);
+            // Then, write the byte array itself.
+            Writer.Write(Value.ToByteArray());
         }
 
         /// <summary>

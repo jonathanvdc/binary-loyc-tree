@@ -43,6 +43,7 @@
     <Reference Include="Loyc.Utilities">
       <HintPath>..\packages\LoycCore.2.1.2\lib\net45\Loyc.Utilities.dll</HintPath>
     </Reference>
+    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Numerics;
 
 namespace Loyc.Binary
 {
@@ -99,6 +100,7 @@ namespace Loyc.Binary
                 return new Dictionary<NodeEncodingType, Func<LoycBinaryReader, ReaderState, LNode>>()
                 {
                     { NodeEncodingType.String, (reader, state) => state.NodeFactory.Literal(reader.ReadStringReference(state)) },
+                    { NodeEncodingType.BigInteger, (reader, state) => state.NodeFactory.Literal(reader.ReadBigInteger()) },
                     { NodeEncodingType.Int8, CreateLiteralNodeReader(reader => reader.ReadSByte()) },
                     { NodeEncodingType.Int16, CreateLiteralNodeReader(reader => reader.ReadInt16()) },
                     { NodeEncodingType.Int32, CreateLiteralNodeReader(reader => reader.ReadInt32()) },
@@ -295,6 +297,18 @@ namespace Loyc.Binary
             }
 
             return State.SymbolTable[index];
+        }
+
+        /// <summary>
+        /// Reads a BigInteger value.
+        /// </summary>
+        /// <returns>The big integer.</returns>
+        public BigInteger ReadBigInteger()
+        {
+            // BigInteger values are encoded as a length prefix 
+            // (ULEB128), followed by a byte array.
+            int length = (int)ReadULeb128();
+            return new BigInteger(Reader.ReadBytes(length));
         }
 
         /// <summary>

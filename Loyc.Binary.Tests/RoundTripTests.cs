@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Numerics;
 
 namespace Loyc.Binary.Tests
 {
@@ -93,9 +94,17 @@ namespace Loyc.Binary.Tests
             return CharacterList.Value[Rand.Next(CharacterList.Value.Length)];
         }
 
+        private BigInteger GenerateRandomBigInteger(Random Rand)
+        {
+            int length = Rand.Next(1, 65);
+            byte[] data = new byte[length];
+            Rand.NextBytes(data);
+            return new BigInteger(data);
+        }
+
         private object GenerateRandomLiteral(Random Rand)
         {
-            switch ((NodeEncodingType)Rand.Next(2, 18))
+            switch ((NodeEncodingType)Rand.Next(2, 19))
             {
                 case NodeEncodingType.String:
                     int length = Rand.Next(30);
@@ -133,6 +142,8 @@ namespace Loyc.Binary.Tests
                     return @void.Value;
                 case NodeEncodingType.Decimal:
                     return (decimal)Rand.NextDouble();
+                case NodeEncodingType.BigInteger:
+                    return GenerateRandomBigInteger(Rand);
                 case NodeEncodingType.Null:
                 default:
                     return null;

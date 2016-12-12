@@ -93,6 +93,11 @@ namespace Loyc.Binary
         /// <summary>
         /// A decimal literal
         /// </summary>
-        Decimal = 17
+        Decimal = 17,
+
+        /// <summary>
+        /// A BigInteger literal.
+        /// </summary>
+        BigInteger = 18
     }
 }
