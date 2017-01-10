@@ -16,7 +16,9 @@
     <copyright>Copyright 2016</copyright>
     <tags>Loyc binary format LNode BLT LES</tags>
     <dependencies>
-        <dependency id="LoycCore" version="1.8.0" />
+        <dependency id="Loyc.Collections" version="24.3.0" />
+        <dependency id="Loyc.Essentials" version="24.3.0" />
+        <dependency id="Loyc.Syntax" version="24.3.0" />
     </dependencies>
   </metadata>
   <files>
