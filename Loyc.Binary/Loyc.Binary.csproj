@@ -31,19 +31,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="Loyc.Collections">
-      <HintPath>..\packages\LoycCore.2.1.2\lib\net45\Loyc.Collections.dll</HintPath>
-    </Reference>
+    <Reference Include="System.Numerics" />
     <Reference Include="Loyc.Essentials">
-      <HintPath>..\packages\LoycCore.2.1.2\lib\net45\Loyc.Essentials.dll</HintPath>
+      <HintPath>..\packages\Loyc.Essentials.24.3.0\lib\net45\Loyc.Essentials.dll</HintPath>
+    </Reference>
+    <Reference Include="Loyc.Collections">
+      <HintPath>..\packages\Loyc.Collections.24.3.0\lib\net45\Loyc.Collections.dll</HintPath>
     </Reference>
     <Reference Include="Loyc.Syntax">
-      <HintPath>..\packages\LoycCore.2.1.2\lib\net45\Loyc.Syntax.dll</HintPath>
+      <HintPath>..\packages\Loyc.Syntax.24.3.0\lib\net45\Loyc.Syntax.dll</HintPath>
     </Reference>
-    <Reference Include="Loyc.Utilities">
-      <HintPath>..\packages\LoycCore.2.1.2\lib\net45\Loyc.Utilities.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
