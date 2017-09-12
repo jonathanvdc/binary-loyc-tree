@@ -10,5 +10,8 @@ $(loyc-binary-dll): $(sln-file) $(proj-files) $(source-files)
 	msbuild /p:Configuration=Release /v:quiet /nologo $(sln-file)
 	touch $(loyc-binary-dll)
 
+nuget:
+	nuget restore $(sln-file)
+
 test: $(loyc-binary-dll)
 	mono $(loyc-binary-tests-exe)
