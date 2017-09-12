@@ -52,15 +52,16 @@ Calls to id nodes tend to occur a lot, so BLT special-cases the constructs and p
 template definition with the id node's symbol.
 The resulting file will look more or less like this (example in a textual format for readability. The actual file uses a binary encoding):
 
-`BLT`  
-`Symbol table (3 items):`  
+`BLT`
+`Version: 1.0`
+`Symbol table (3 items):`
   * `$0: "+"`
   * `$1: "x"`
-  * `$2: "y"`  
+  * `$2: "y"`
 
-`Template table (2 items):`  
+`Template table (2 items):`
   * `#0: IdCall: $0(Int32, Int32)`
-  * `#1: IdCall: $0(TemplatedNode, Id)`  
+  * `#1: IdCall: $0(TemplatedNode, Id)`
 
 `Top-level node list (1 item):`
   * `TemplatedNode - #1 (@+(TemplatedNode, Id))`

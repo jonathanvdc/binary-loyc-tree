@@ -16,9 +16,24 @@ namespace Loyc.Binary
     public static class LoycBinaryHelpers
     {
         /// <summary>
-        /// Gets the magic number for binary loyc tree files.
+        /// The magic number for binary loyc tree files.
         /// </summary>
         public const string Magic = "BLT";
+
+        /// <summary>
+        /// The latest major version number for the BLT format.
+        /// </summary>
+        public const short MajorVersionNumber = 1;
+
+        /// <summary>
+        /// The latest minor version number for the BLT format.
+        /// </summary>
+        public const short MinorVersionNumber = 0;
+
+        /// <summary>
+        /// The composite version number for the BLT format, as stored in a BLT file.
+        /// </summary>
+        public const int VersionNumber = (int)MajorVersionNumber << 16 | (int)MinorVersionNumber;
 
         /// <summary>
         /// Reads the given binary loyc tree file.

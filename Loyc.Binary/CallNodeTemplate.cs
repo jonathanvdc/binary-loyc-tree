@@ -94,9 +94,9 @@ namespace Loyc.Binary
         {
             int result = (int)TemplateType;
             foreach (var item in ArgumentTypes)
-	        {
+            {
                 result = (result << 1) ^ (int)item;
-	        }
+            }
             return result;
         }
     }

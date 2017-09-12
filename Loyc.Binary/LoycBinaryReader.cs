@@ -384,6 +384,15 @@ namespace Loyc.Binary
         }
 
         /// <summary>
+        /// Reads the BLT file's version number, as a single integer.
+        /// </summary>
+        /// <returns>The BLT file's version number.</returns>
+        public int ReadVersion()
+        {
+            return Reader.ReadInt32();
+        }
+
+        /// <summary>
         /// Reads a file encoded in the loyc binary tree format.
         /// This checks the magic number first, and then parses the 
         /// file's contents.
@@ -394,7 +403,24 @@ namespace Loyc.Binary
         {
             if (!CheckMagic())
             {
-                throw new InvalidDataException("The given stream's magic number did not read '" + LoycBinaryHelpers.Magic + "', which is the loyc binary tree format's magic string.");
+                throw new InvalidDataException(
+                    "The given stream's magic number did not read '" +
+                    LoycBinaryHelpers.Magic +
+                    "', which is the loyc binary tree format's magic string.");
+            }
+
+            var versionNumber = ReadVersion();
+
+            if (versionNumber > LoycBinaryHelpers.VersionNumber)
+            {
+                int majorVersionNumber = versionNumber >> 16;
+                int minorVersionNumber = versionNumber & 0x0000FFFF;
+                throw new InvalidDataException(
+                    "The given stream's version number '" +
+                    majorVersionNumber + "." + minorVersionNumber +
+                    "' is not supported. Max supported version number: '" + 
+                    LoycBinaryHelpers.MajorVersionNumber + "." +
+                    LoycBinaryHelpers.MinorVersionNumber + "'.");
             }
 
             return ReadFileContents(Identifier);

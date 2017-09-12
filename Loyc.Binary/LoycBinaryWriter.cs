@@ -397,6 +397,22 @@ namespace Loyc.Binary
         }
 
         /// <summary>
+        /// Writes the latest BLT version number to the output stream.
+        /// </summary>
+        public void WriteVersion()
+        {
+            WriteVersion(LoycBinaryHelpers.MajorVersionNumber, LoycBinaryHelpers.MinorVersionNumber);
+        }
+
+        /// <summary>
+        /// Writes the given BLT version number to the output stream.
+        /// </summary>
+        public void WriteVersion(short MajorVersionNumber, short MinorVersionNumber)
+        {
+            Writer.Write((int)MajorVersionNumber << 16 | (int)MinorVersionNumber);
+        }
+
+        /// <summary>
         /// Writes the contents of a binary loyc file to the current output stream.
         /// </summary>
         /// <param name="Nodes"></param>
@@ -423,6 +439,7 @@ namespace Loyc.Binary
         public void WriteFile(IReadOnlyList<LNode> Nodes)
         {
             WriteMagic();
+            WriteVersion();
             WriteFileContents(Nodes);
         }
 
