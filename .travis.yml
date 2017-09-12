@@ -2,10 +2,10 @@ language: csharp
 solution: Loyc.Binary.sln
 install:
     # Restore NuGet packages first
-    - nuget restore Loyc.Binary.sln
+    - make nuget
 script:
-    # Build the Loyc libraries in release mode, for all possible configurations.
-    - xbuild /p:Configuration=Release Loyc.Binary.sln
+    # Build the Loyc libraries in release mode.
+    - make
 
     # Run the tests
-    - mono Loyc.Binary.Tests/bin/Release/Loyc.Binary.Tests.exe
+    - make test
