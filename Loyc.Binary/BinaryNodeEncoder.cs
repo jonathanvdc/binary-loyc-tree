@@ -18,12 +18,15 @@ namespace Loyc.Binary
         /// that encodes the given encoding type using the given function.
         /// </summary>
         /// <param name="EncodingType">The encoding type.</param>
+        /// <param name="GetTemplate">A function that figures out what the right template for a node is.</param>
         /// <param name="Encode">The function that encodes nodes.</param>
         public BinaryNodeEncoder(
-            NodeEncodingType EncodingType, 
+            NodeEncodingType EncodingType,
+            Func<WriterState, LNode, NodeTemplate> GetTemplate,
             Action<LoycBinaryWriter, WriterState, LNode> Encode)
         {
             this.EncodingType = EncodingType;
+            this.GetTemplate = GetTemplate;
             this.Encode = Encode;
         }
 
@@ -31,6 +34,11 @@ namespace Loyc.Binary
         /// Gets the encoder's encoding type.
         /// </summary>
         public NodeEncodingType EncodingType { get; private set; }
+
+        /// <summary>
+        /// Gets the template for the given node, or null if the node does not need a template.
+        /// </summary>
+        public Func<WriterState, LNode, NodeTemplate> GetTemplate { get; private set; }
 
         /// <summary>
         /// Encodes a given node.
@@ -46,7 +54,10 @@ namespace Loyc.Binary
         /// <returns></returns>
         public static BinaryNodeEncoder CreateLiteralEncoder<T>(NodeEncodingType Encoding, Action<BinaryWriter, T> ValueEncoder)
         {
-            return new BinaryNodeEncoder(Encoding, (writer, state, node) => ValueEncoder(writer.Writer, (T)node.Value));
+            return new BinaryNodeEncoder(
+                Encoding,
+                (state, node) => null,
+                (writer, state, node) => ValueEncoder(writer.Writer, (T)node.Value));
         }
 
         /// <summary>
@@ -58,35 +69,46 @@ namespace Loyc.Binary
         /// <returns></returns>
         public static BinaryNodeEncoder CreateLiteralEncoder<T>(NodeEncodingType Encoding, Action<LoycBinaryWriter, WriterState, T> ValueEncoder)
         {
-            return new BinaryNodeEncoder(Encoding, (writer, state, node) => ValueEncoder(writer, state, (T)node.Value));
+            return new BinaryNodeEncoder(
+                Encoding,
+                (state, node) => null,
+                (writer, state, node) => ValueEncoder(writer, state, (T)node.Value));
         }
 
         /// <summary>
         /// Gets the binary node encoder for id nodes.
         /// </summary>
         public static readonly BinaryNodeEncoder IdEncoder = 
-            new BinaryNodeEncoder(NodeEncodingType.IdNode,
+            new BinaryNodeEncoder(
+                NodeEncodingType.IdNode,
+                (state, node) => null,
                 (writer, state, node) => writer.WriteReference(state, node.Name));
 
         /// <summary>
         /// Gets the binary node encoder for null literals.
         /// </summary>
         public static readonly BinaryNodeEncoder NullEncoder =
-            new BinaryNodeEncoder(NodeEncodingType.Null,
+            new BinaryNodeEncoder(
+                NodeEncodingType.Null,
+                (state, node) => null,
                 (writer, state, node) => { });
 
         /// <summary>
         /// Gets the binary node encoder for attribute literals.
         /// </summary>
         public static readonly BinaryNodeEncoder AttributeEncoder =
-            new BinaryNodeEncoder(NodeEncodingType.TemplatedNode,
+            new BinaryNodeEncoder(
+                NodeEncodingType.TemplatedNode,
+                (state, node) => new AttributeNodeTemplate(node.AttrCount),
                 (writer, state, node) =>
                 {
-                    var nodeList = new LNode[] { node.WithoutAttrs() }.Concat(node.Attrs);
-                    var encoders = nodeList.Select(item => Pair.Create(item, writer.GetEncoder(item))).ToArray();
-                    var template = new AttributeNodeTemplate(encoders.Select(item => item.Value.EncodingType).ToArray());
+                    var template = new AttributeNodeTemplate(node.AttrCount);
                     writer.WriteReference(state, template);
-                    writer.WriteListContents(encoders, item => item.Value.Encode(writer, state, item.Key)); 
+                    writer.WriteReference(state, node.WithoutAttrs());
+                    foreach (var attr in node.Attrs)
+                    {
+                        writer.WriteReference(state, attr);
+                    }
                 });
 
         /// <summary>
@@ -94,13 +116,16 @@ namespace Loyc.Binary
         /// </summary>
         public static readonly BinaryNodeEncoder CallEncoder =
             new BinaryNodeEncoder(NodeEncodingType.TemplatedNode,
+                (state, node) => new CallNodeTemplate(node.ArgCount),
                 (writer, state, node) =>
                 {
-                    var nodeList = new LNode[] { node.Target }.Concat(node.Args);
-                    var encoders = nodeList.Select(item => Pair.Create(item, writer.GetEncoder(item))).ToArray();
-                    var template = new CallNodeTemplate(encoders.Select(item => item.Value.EncodingType).ToArray());
+                    var template = new CallNodeTemplate(node.ArgCount);
                     writer.WriteReference(state, template);
-                    writer.WriteListContents(encoders, item => item.Value.Encode(writer, state, item.Key));
+                    writer.WriteReference(state, node.Target);
+                    foreach (var arg in node.Args)
+                    {
+                        writer.WriteReference(state, arg);
+                    }
                 });
 
         /// <summary>
@@ -108,13 +133,16 @@ namespace Loyc.Binary
         /// </summary>
         public static readonly BinaryNodeEncoder CallIdEncoder =
             new BinaryNodeEncoder(NodeEncodingType.TemplatedNode,
+                (state, node) => new CallIdNodeTemplate(state.GetIndex(node.Target.Name), node.ArgCount),
                 (writer, state, node) =>
                 {
                     int nodeTarget = state.GetIndex(node.Target.Name);
-                    var encoders = node.Args.Select(item => Pair.Create(item, writer.GetEncoder(item))).ToArray();
-                    var template = new CallIdNodeTemplate(nodeTarget, encoders.Select(item => item.Value.EncodingType).ToArray());
+                    var template = new CallIdNodeTemplate(nodeTarget, node.ArgCount);
                     writer.WriteReference(state, template);
-                    writer.WriteListContents(encoders, item => item.Value.Encode(writer, state, item.Key));
+                    foreach (var arg in node.Args)
+                    {
+                        writer.WriteReference(state, arg);
+                    }
                 });
     }
 }

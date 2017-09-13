@@ -14,42 +14,20 @@ namespace Loyc.Binary
     public class AttributeNodeTemplate : NodeTemplate
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Loyc.Binary.AttributeNodeTemplate"/> class
-        /// from a non-empty list of template argument types. The first of these types
-        /// is interpreted as the target node encoding, the remainder is interpreted
-        /// as a list of encodings for the attribute nodes.
+        /// Initializes a new instance of the <see cref="Loyc.Binary.AttributeNodeTemplate"/> class.
         /// </summary>
-        /// <param name="templateArgumentTypes">Template argument types.</param>
-        public AttributeNodeTemplate(IReadOnlyList<NodeEncodingType> templateArgumentTypes)
+        /// <param name="attributeCount">The number of attributes to attach to a node.</param>
+        public AttributeNodeTemplate(int attributeCount)
         {
-            Debug.Assert(Enumerable.Any(templateArgumentTypes));
-
-            argTypes = templateArgumentTypes;
+            argCount = attributeCount;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Loyc.Binary.AttributeNodeTemplate"/> 
-        /// class that attaches a list of attributes encoded with the given
-        /// list of encodings to a node encoded with the given encoding.
-        /// </summary>
-        /// <param name="attributeTargetType">The encoding to encode the target with.</param>
-        /// <param name="attributeArgumentTypes">The encoding to encode the arguments with..</param>
-        public AttributeNodeTemplate(
-            NodeEncodingType attributeTargetType, 
-            IReadOnlyList<NodeEncodingType> attributeArgumentTypes)
-        {
-            var argTys = new List<NodeEncodingType>();
-            argTys.Add(attributeTargetType);
-            argTys.AddRange(attributeArgumentTypes);
-            argTypes = argTys;
-        }
-
-        private IReadOnlyList<NodeEncodingType> argTypes;
+        private int argCount;
 
         /// <inheritdoc/>
-        public override IReadOnlyList<NodeEncodingType> ArgumentTypes
+        public override int ArgumentCount
         {
-            get { return argTypes; }
+            get { return argCount + 1; }
         }
 
         /// <inheritdoc/>
@@ -65,7 +43,7 @@ namespace Loyc.Binary
         /// <returns></returns>
         public static AttributeNodeTemplate Read(LoycBinaryReader Reader)
         {
-            return new AttributeNodeTemplate(Reader.ReadList(Reader.ReadEncodingType));
+            return new AttributeNodeTemplate((int)Reader.ReadULeb128());
         }
 
         /// <inheritdoc/>
@@ -80,24 +58,19 @@ namespace Loyc.Binary
         /// <param name="Writer"></param>
         public override void Write(LoycBinaryWriter Writer)
         {
-            Writer.WriteList(ArgumentTypes, Writer.WriteEncodingType);
+            Writer.WriteULeb128((uint)argCount);
         }
 
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            return obj is AttributeNodeTemplate && ArgumentTypes.SequenceEqual(((AttributeNodeTemplate)obj).ArgumentTypes);
+            return obj is AttributeNodeTemplate && argCount == ((AttributeNodeTemplate)obj).argCount;
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            int result = (int)TemplateType;
-            foreach (var item in ArgumentTypes)
-            {
-                result = (result << 1) ^ (int)item;
-            }
-            return result;
+            return (int)TemplateType << 5 ^ argCount;
         }
     }
 }

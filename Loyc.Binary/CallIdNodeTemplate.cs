@@ -15,17 +15,14 @@ namespace Loyc.Binary
         /// <summary>
         /// Initializes a new instance of the <see cref="Loyc.Binary.CallIdNodeTemplate"/> class
         /// that encodes a call to the symbol with the specified index.
-        /// Arguments are encoded according to the given list of argument
-        /// type encodings.
         /// </summary>
         /// <param name="targetSymbolIndex">The index in the symbol table to which a call is built..</param>
-        /// <param name="argumentTypes">The encodings of the argument nodes.</param>
+        /// <param name="argumentCount">The number of argument nodes.</param>
         public CallIdNodeTemplate(
-            int targetSymbolIndex, 
-            IReadOnlyList<NodeEncodingType> argumentTypes)
+            int targetSymbolIndex, int argumentCount)
         {
             TargetSymbolIndex = targetSymbolIndex;
-            argTypes = argumentTypes;
+            argCount = argumentCount;
         }
 
         /// <summary>
@@ -35,12 +32,12 @@ namespace Loyc.Binary
         /// <value>The index of the target symbol.</value>
         public int TargetSymbolIndex { get; private set; }
 
-        private IReadOnlyList<NodeEncodingType> argTypes;
+        private int argCount;
 
         /// <inheritdoc/>
-        public override IReadOnlyList<NodeEncodingType> ArgumentTypes
+        public override int ArgumentCount
         {
-            get { return argTypes; }
+            get { return argCount; }
         }
 
         /// <inheritdoc/>
@@ -56,9 +53,9 @@ namespace Loyc.Binary
         /// <returns></returns>
         public static CallIdNodeTemplate Read(LoycBinaryReader Reader)
         {
-            int symbolIndex = Reader.Reader.ReadInt32();
-            var types = Reader.ReadList(Reader.ReadEncodingType);
-            return new CallIdNodeTemplate(symbolIndex, types);
+            int symbolIndex = (int)Reader.ReadULeb128();
+            int argCount = (int)Reader.ReadULeb128();
+            return new CallIdNodeTemplate(symbolIndex, argCount);
         }
 
         /// <inheritdoc/>
@@ -73,28 +70,23 @@ namespace Loyc.Binary
         /// <param name="Writer"></param>
         public override void Write(LoycBinaryWriter Writer)
         {
-            Writer.Writer.Write(TargetSymbolIndex);
-            Writer.WriteList(ArgumentTypes, Writer.WriteEncodingType);
+            Writer.WriteULeb128((uint)TargetSymbolIndex);
+            Writer.WriteULeb128((uint)argCount);
         }
 
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             var other = obj as CallIdNodeTemplate;
-            return other != null && 
-                   this.TargetSymbolIndex == other.TargetSymbolIndex && 
-                   this.ArgumentTypes.SequenceEqual(other.ArgumentTypes);
+            return other != null &&
+                   this.TargetSymbolIndex == other.TargetSymbolIndex &&
+                   this.ArgumentCount == other.ArgumentCount;
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            int result = (int)TemplateType ^ TargetSymbolIndex;
-            foreach (var item in ArgumentTypes)
-            {
-                result = (result << 1) ^ (int)item;
-            }
-            return result;
+            return ((int)TemplateType << 24) ^ ((int)TargetSymbolIndex << 3) ^ ArgumentCount;
         }
     }
 }

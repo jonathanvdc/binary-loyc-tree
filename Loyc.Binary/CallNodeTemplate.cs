@@ -15,41 +15,20 @@ namespace Loyc.Binary
     public class CallNodeTemplate : NodeTemplate
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Loyc.Binary.CallNodeTemplate"/> class
-        /// from the given non-empty list of template argument node encodings. The first encoding
-        /// is interpreted as the call target's encoding. The remainder of the encoding list
-        /// describes how the call's argument nodes are encoded.
+        /// Initializes a new instance of the <see cref="Loyc.Binary.CallNodeTemplate"/> class.
         /// </summary>
-        /// <param name="templateArgumentTypes">The list of template argument encodings.</param>
-        public CallNodeTemplate(IReadOnlyList<NodeEncodingType> templateArgumentTypes)
+        /// <param name="callArgumentCount">The number of arguments taken by the call.</param>
+        public CallNodeTemplate(int callArgumentCount)
         {
-            Debug.Assert(Enumerable.Any(templateArgumentTypes));
-
-            argTypes = templateArgumentTypes;
+            callArgCount = callArgumentCount;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Loyc.Binary.CallNodeTemplate"/> class
-        /// from the specified call target and call argument encodings.
-        /// </summary>
-        /// <param name="callTargetType">The encoding of the call target node.</param>
-        /// <param name="callArgumentTypes">The encoding of the call's arguments.</param>
-        public CallNodeTemplate(
-            NodeEncodingType callTargetType, 
-            IReadOnlyList<NodeEncodingType> callArgumentTypes)
-        {
-            var argTyList = new List<NodeEncodingType>();
-            argTyList.Add(callTargetType);
-            argTyList.AddRange(callArgumentTypes);
-            argTypes = argTyList;
-        }
-
-        private IReadOnlyList<NodeEncodingType> argTypes;
+        private int callArgCount;
 
         /// <inheritdoc/>
-        public override IReadOnlyList<NodeEncodingType> ArgumentTypes
+        public override int ArgumentCount
         {
-            get { return argTypes; }
+            get { return callArgCount + 1; }
         }
 
         /// <inheritdoc/>
@@ -71,7 +50,7 @@ namespace Loyc.Binary
         /// <returns></returns>
         public static CallNodeTemplate Read(LoycBinaryReader Reader)
         {
-            return new CallNodeTemplate(Reader.ReadList(Reader.ReadEncodingType));
+            return new CallNodeTemplate((int)Reader.ReadULeb128());
         }
 
         /// <summary>
@@ -80,24 +59,19 @@ namespace Loyc.Binary
         /// <param name="Writer"></param>
         public override void Write(LoycBinaryWriter Writer)
         {
-            Writer.WriteList(ArgumentTypes, Writer.WriteEncodingType);
+            Writer.WriteULeb128((uint)callArgCount);
         }
 
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            return obj is CallNodeTemplate && ArgumentTypes.SequenceEqual(((CallNodeTemplate)obj).ArgumentTypes);
+            return obj is CallNodeTemplate && callArgCount == ((CallNodeTemplate)obj).callArgCount;
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            int result = (int)TemplateType;
-            foreach (var item in ArgumentTypes)
-            {
-                result = (result << 1) ^ (int)item;
-            }
-            return result;
+            return (int)TemplateType << 5 ^ callArgCount;
         }
     }
 }

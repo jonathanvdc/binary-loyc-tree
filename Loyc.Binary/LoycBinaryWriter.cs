@@ -133,7 +133,7 @@ namespace Loyc.Binary
                         BinaryNodeEncoder.CreateLiteralEncoder<BigInteger>(
                             NodeEncodingType.BigInteger, (writer, state, value) => writer.WriteBigInteger(value)) 
                     },
-                    { typeof(@void), new BinaryNodeEncoder(NodeEncodingType.Void, (writer, state, node) => { }) }
+                    { typeof(@void), new BinaryNodeEncoder(NodeEncodingType.Void, (state, node) => null, (writer, state, node) => { }) }
                 };
             }
         }
@@ -257,77 +257,152 @@ namespace Loyc.Binary
         #region Node Writing
 
         /// <summary>
-        /// Gets a node encoder for the given node.
+        /// Writes a reference to the given node.
         /// </summary>
-        /// <param name="Node"></param>
-        /// <returns></returns>
-        public BinaryNodeEncoder GetEncoder(LNode Node)
+        /// <param name="State">The writer state.</param>
+        /// <param name="Node">The node to reference.</param>
+        public void WriteReference(WriterState State, LNode Node)
         {
-            if (Node.HasAttrs)
+            WriteULeb128((uint)State.GetIndex(Node));
+        }
+
+        /// <summary>
+        /// Writes the given writer state's node table to the output stream.
+        /// </summary>
+        /// <param name="State">The writer state.</param>
+        public void WriteNodeTable(
+            WriterState State)
+        {
+            var nodeTable = State.Nodes;
+            WriteULeb128((uint)nodeTable.Count);
+            foreach (var subTable in nodeTable)
             {
-                return BinaryNodeEncoder.AttributeEncoder;
-            }
-            else if (Node.IsCall)
-            {
-                if (Node.Target.IsId && !Node.Target.HasAttrs)
+                WriteULeb128((uint)subTable.Item2.Count);
+                WriteEncodingType(subTable.Item1);
+                foreach (var node in subTable.Item2)
                 {
-                    return BinaryNodeEncoder.CallIdEncoder;
+                    State.GetEncoder(node).Encode(this, State, node);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Categorizes the given node and its descendants into clusters of literal
+        /// and id types.
+        /// </summary>
+        /// <param name="Node">The node to categorize.</param>
+        /// <param name="Literals">A dictionary that maps literal types to nodes.</param>
+        /// <param name="NullLiterals">A list of null literal nodes.</param>
+        /// <param name="IdNodes">A list of id nodes.</param>
+        private static void ClusterLiteralsByType(
+            LNode Node,
+            Dictionary<Type, List<LNode>> Literals,
+            List<LNode> NullLiterals,
+            List<LNode> IdNodes)
+        {
+            if (Node.HasAttrs || Node.IsCall)
+            {
+                // We can't assign this node to a cluster, but we
+                // may be able to assign its child nodes to a cluster.
+                if (Node.HasAttrs)
+                {
+                    foreach (var attr in Node.Attrs)
+                    {
+                        ClusterLiteralsByType(attr, Literals, NullLiterals, IdNodes);
+                    }
+                    ClusterLiteralsByType(Node.WithoutAttrs(), Literals, NullLiterals, IdNodes);
+                }
+                else if (Node.IsCall)
+                {
+                    ClusterLiteralsByType(Node.Target, Literals, NullLiterals, IdNodes);
+                    foreach (var args in Node.Args)
+                    {
+                        ClusterLiteralsByType(args, Literals, NullLiterals, IdNodes);
+                    }
+                }
+                return;
+            }
+
+            List<LNode> nodeList;
+            if (Node.IsLiteral)
+            {
+                if (Node.Value == null)
+                {
+                    nodeList = NullLiterals;
                 }
                 else
                 {
-                    return BinaryNodeEncoder.CallEncoder;
+                    var literalType = Node.Value.GetType();
+                    if (!Literals.TryGetValue(literalType, out nodeList))
+                    {
+                        nodeList = new List<LNode>();
+                        Literals[literalType] = nodeList;
+                    }
                 }
             }
             else if (Node.IsId)
             {
-                return BinaryNodeEncoder.IdEncoder;
+                nodeList = IdNodes;
             }
             else
             {
-                object nodeVal = Node.Value;
-                if (nodeVal == null)
+                // This should never happen, but we might as well handle it
+                // gracefully.
+                return;
+            }
+
+            nodeList.Add(Node);
+        }
+
+        /// <summary>
+        /// Adds a list of nodes to the node table of a writer state.
+        /// </summary>
+        /// <param name="State">The writer state to populate.</param>
+        /// <param name="Nodes">A list of nodes to add.</param>
+        public static void AddToNodeTable(
+            WriterState State, IReadOnlyList<LNode> Nodes)
+        {
+            // We could naively call `State.GetIndex(node);` on every node
+            // in `Nodes` and that'd work fine. But doing so would create
+            // lots of small sub-tables in the node table, and each of these
+            // tables has at least two bytes of overhead.
+            //
+            // We can improve on this situation by first adding all literals
+            // and id nodes and only then adding the top-level nodes. Doing
+            // so will create one table per literal/id type and one table
+            // for the templated nodes.
+
+            // First, cluster all literal and id nodes.
+            var literals = new Dictionary<Type, List<LNode>>();
+            var nullLiterals = new List<LNode>();
+            var idNodes = new List<LNode>();
+            foreach (var node in Nodes)
+            {
+                ClusterLiteralsByType(node, literals, nullLiterals, idNodes);
+            }
+
+            // Add clustered nodes to the node table.
+            foreach (var node in nullLiterals)
+            {
+                State.GetIndex(node);
+            }
+            foreach (var node in idNodes)
+            {
+                State.GetIndex(node);
+            }
+            foreach (var kvPair in literals)
+            {
+                foreach (var node in kvPair.Value)
                 {
-                    return BinaryNodeEncoder.NullEncoder;
-                }
-                else
-                {
-                    BinaryNodeEncoder result;
-                    if (LiteralEncoders.TryGetValue(nodeVal.GetType(), out result))
-                    {
-                        return result;
-                    }
-                    else
-                    {
-                        throw new NotSupportedException("Node '" + Node.Print() + "' could not be encoded by any of the writer's known encoders.");
-                    }
+                    State.GetIndex(node);
                 }
             }
-        }
 
-        /// <summary>
-        /// Writes the given node to the output stream, prefixed by its encoding type.
-        /// </summary>
-        /// <param name="State"></param>
-        /// <param name="Node"></param>
-        public void WritePrefixedNode(WriterState State, LNode Node)
-        {
-            var encoder = GetEncoder(Node);
-            WriteEncodingType(encoder.EncodingType);
-            encoder.Encode(this, State, Node);
-        }
-
-        /// <summary>
-        /// Writes the given node to the output stream, and returns
-        /// its encoding type.
-        /// </summary>
-        /// <param name="State"></param>
-        /// <param name="Node"></param>
-        /// <returns></returns>
-        public NodeEncodingType WriteNode(WriterState State, LNode Node)
-        {
-            var encoder = GetEncoder(Node);
-            encoder.Encode(this, State, Node);
-            return encoder.EncodingType;
+            // Add all other nodes to the node table.
+            foreach (var node in Nodes)
+            {
+                State.GetIndex(node);
+            }
         }
 
         #endregion
@@ -415,20 +490,15 @@ namespace Loyc.Binary
         /// <summary>
         /// Writes the contents of a binary loyc file to the current output stream.
         /// </summary>
-        /// <param name="Nodes"></param>
+        /// <param name="Nodes">The top-level nodes to encode.</param>
         public void WriteFileContents(IReadOnlyList<LNode> Nodes)
         {
-            using (var memStream = new MemoryStream())
-            using (var childWriter = new LoycBinaryWriter(memStream, this))
-            {
-                var state = new WriterState();
-                childWriter.WriteList(Nodes, node => childWriter.WritePrefixedNode(state, node));
+            var state = new WriterState(LiteralEncoders);
+            AddToNodeTable(state, Nodes);
 
-                memStream.Seek(0, SeekOrigin.Begin);
-
-                WriteHeader(state);
-                memStream.CopyTo(Writer.BaseStream);
-            }
+            WriteHeader(state);
+            WriteNodeTable(state);
+            WriteList(Nodes, node => WriteReference(state, node));
         }
 
         /// <summary>

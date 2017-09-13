@@ -329,14 +329,53 @@ namespace Loyc.Binary
         }
 
         /// <summary>
+        /// Reads the node table as a flat list of nodes.
+        /// </summary>
+        /// <param name="State">The reader state.</param>
+        /// <returns>The node table.</returns>
+        public IReadOnlyList<LNode> ReadNodeTable(ReaderState State)
+        {
+            var nodes = new List<LNode>();
+
+            // The node table is a length-prefixed list of (length, encoding)-prefixed
+            // lists of nodes. It forms a flat index space.
+            int tableCount = (int)ReadULeb128();
+            for (int i = 0; i < tableCount; i++)
+            {
+                int tableSize = (int)ReadULeb128();
+                var encoding = ReadEncodingType();
+                for (int j = 0; j < tableSize; j++)
+                {
+                    nodes.Add(ReadNode(State, encoding, nodes));
+                }
+            }
+            return nodes;
+        }
+
+        /// <summary>
+        /// Reads a reference to a node in the node table.
+        /// </summary>
+        /// <param name="NodeTable">The node table.</param>
+        /// <returns>The referenced node.</returns>
+        private LNode ReadNodeReference(IReadOnlyList<LNode> NodeTable)
+        {
+            return NodeTable[(int)ReadULeb128()];
+        }
+
+        /// <summary>
         /// Reads a template-prefixed templated node.
         /// </summary>
         /// <param name="State"></param>
+        /// <param name="NodeTable"></param>
         /// <returns></returns>
-        public LNode ReadTemplatedNode(ReaderState State)
+        private LNode ReadTemplatedNode(ReaderState State, IReadOnlyList<LNode> NodeTable)
         {
             var template = ReadTemplateReference(State);
-            var args = template.ArgumentTypes.Select(type => ReadNode(State, type)).ToArray();
+            var args = new LNode[template.ArgumentCount];
+            for (int i = 0; i < args.Length; i++)
+            {
+                args[i] = ReadNodeReference(NodeTable);
+            }
             return template.Instantiate(State, args);
         }
 
@@ -345,12 +384,16 @@ namespace Loyc.Binary
         /// </summary>
         /// <param name="State"></param>
         /// <param name="Encoding"></param>
+        /// <param name="NodeTable"></param>
         /// <returns></returns>
-        public LNode ReadNode(ReaderState State, NodeEncodingType Encoding)
+        private LNode ReadNode(
+            ReaderState State,
+            NodeEncodingType Encoding,
+            IReadOnlyList<LNode> NodeTable)
         {
             if (Encoding == NodeEncodingType.TemplatedNode)
             {
-                return ReadTemplatedNode(State);
+                return ReadTemplatedNode(State, NodeTable);
             }
             else if (Encoding == NodeEncodingType.IdNode)
             {
@@ -434,7 +477,8 @@ namespace Loyc.Binary
         public IReadOnlyList<LNode> ReadFileContents(string Identifier)
         {
             var header = ReadHeader(Identifier);
-            return ReadList(() => ReadNode(header, ReadEncodingType()));
+            var nodes = ReadNodeTable(header);
+            return ReadList(() => ReadNodeReference(nodes));
         }
 
         #endregion

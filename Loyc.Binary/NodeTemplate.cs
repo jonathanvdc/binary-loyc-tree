@@ -19,21 +19,16 @@ namespace Loyc.Binary
         public abstract NodeTemplateType TemplateType { get; }
 
         /// <summary>
-        /// Gets the template's list of argument types.
-        /// </summary>
-        public abstract IReadOnlyList<NodeEncodingType> ArgumentTypes { get; }
-
-        /// <summary>
         /// Gets the number of arguments the node template takes.
         /// </summary>
-        public int ArgumentCount { get { return ArgumentTypes.Count;  } }
+        public abstract int ArgumentCount { get; }
 
         /// <summary>
         /// Instantiates this template.
         /// </summary>
         /// <param name="State">The current reader state.</param>
         /// <param name="Arguments">The list of argument nodes for this template.</param>
-        /// <returns></returns>
+        /// <returns>A template instantiation.</returns>
         public abstract LNode Instantiate(ReaderState State, IEnumerable<LNode> Arguments);
 
         /// <summary>
