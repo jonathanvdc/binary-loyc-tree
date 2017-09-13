@@ -47,6 +47,9 @@
     <Reference Include="Loyc.Utilities">
       <HintPath>..\packages\Loyc.Utilities.24.3.0\lib\net45\Loyc.Utilities.dll</HintPath>
     </Reference>
+    <Reference Include="Loyc.Ecs">
+      <HintPath>..\packages\Loyc.Ecs.24.3.0\lib\net45\Loyc.Ecs.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
