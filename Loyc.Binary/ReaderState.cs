@@ -19,11 +19,10 @@ namespace Loyc.Binary
         /// <param name="nodeFactory"></param>
         /// <param name="symbolTable"></param>
         /// <param name="templateTable"></param>
-        public ReaderState(LNodeFactory nodeFactory, IReadOnlyList<string> symbolTable, IReadOnlyList<NodeTemplate> templateTable)
+        public ReaderState(LNodeFactory nodeFactory, IReadOnlyList<Symbol> symbolTable, IReadOnlyList<NodeTemplate> templateTable)
         {
             this.NodeFactory = nodeFactory;
             this.SymbolTable = symbolTable;
-            this.SymbolPool = SymbolPool.@new();
             this.TemplateTable = templateTable;
         }
 
@@ -33,14 +32,9 @@ namespace Loyc.Binary
         public LNodeFactory NodeFactory { get; private set; }
 
         /// <summary>
-        /// Gets the reader's symbol pool.
-        /// </summary>
-        public SymbolPool SymbolPool { get; private set; }
-
-        /// <summary>
         /// Gets the reader's symbol table.
         /// </summary>
-        public IReadOnlyList<string> SymbolTable { get; private set; }
+        public IReadOnlyList<Symbol> SymbolTable { get; private set; }
 
         /// <summary>
         /// Gets the reader's template table.

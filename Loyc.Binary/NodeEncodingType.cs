@@ -11,8 +11,8 @@ namespace Loyc.Binary
     public enum NodeEncodingType : byte
     {
         /// <summary>
-        /// A templated node, which is encoded as a template index and inline data.
-        /// Call nodes and attribute nodes are encoded as templates nodes.
+        /// A table of templated nodes. The table is prefixed with a reference to the
+        /// template and the table itself consists of references to other nodes.
         /// </summary>
         TemplatedNode = 0,
 
@@ -98,6 +98,99 @@ namespace Loyc.Binary
         /// <summary>
         /// A BigInteger literal.
         /// </summary>
-        BigInteger = 18
+        BigInteger = 18,
+
+        /// <summary>
+        /// A table of templated nodes where each node specifies its own
+        /// template, followed by a list of references to nodes.
+        /// </summary>
+        VariablyTemplatedNode = 19,
+    }
+
+    /// <summary>
+    /// Describes the encoding of (a table of) nodes.
+    /// </summary>
+    public struct NodeEncoding : IEquatable<NodeEncoding>
+    {
+        /// <summary>
+        /// Creates a node encoding from the encoding type.
+        /// </summary>
+        /// <param name="kind">The kind of encoding.</param>
+        public NodeEncoding(NodeEncodingType kind)
+        {
+            this.Kind = kind;
+            this.TemplateIndex = 0;
+        }
+
+        /// <summary>
+        /// Creates a node encoding from the given template index.
+        /// </summary>
+        /// <param name="templateIndex">An index into the template table.</param>
+        public NodeEncoding(int templateIndex)
+        {
+            this.Kind = NodeEncodingType.TemplatedNode;
+            this.TemplateIndex = templateIndex;
+        }
+
+        /// <summary>
+        /// Creates a node encoding from the encoding type and template index.
+        /// </summary>
+        /// <param name="kind">The kind of encoding.</param>
+        /// <param name="templateIndex">An index into the template table.</param>
+        public NodeEncoding(NodeEncodingType kind, int templateIndex)
+        {
+            this.Kind = kind;
+            this.TemplateIndex = templateIndex;
+        }
+
+        /// <summary>
+        /// Gets the kind of encoding.
+        /// </summary>
+        /// <returns>The kind of encoding.</returns>
+        public NodeEncodingType Kind { get; private set; }
+
+        /// <summary>
+        /// Tells if this encoding relies on a template.
+        /// </summary>
+        public bool HasTemplate => IsTemplateEncoding(Kind);
+
+        /// <summary>
+        /// Gets the index of this encoding in the template table.
+        /// </summary>
+        /// <returns>The index in the template table.</returns>
+        public int TemplateIndex { get; private set; }
+
+        /// <summary>
+        /// Tests if this node encoding is equal to the given node encoding.
+        /// </summary>
+        /// <param name="other">The encoding to test for equality.</param>
+        /// <returns><c>true</c> if the encodings are equal; otherwise, <c>false</c>.</returns>
+        public bool Equals(NodeEncoding other)
+        {
+            return Kind == other.Kind
+                && TemplateIndex == other.TemplateIndex;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return obj is NodeEncoding && Equals((NodeEncoding)obj);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return (int)Kind ^ TemplateIndex;
+        }
+
+        /// <summary>
+        /// Tells if the given encoding type uses a template.
+        /// </summary>
+        /// <param name="kind">The encoding type.</param>
+        /// <returns><c>true</c> if the encoding type uses a template; otherwise, <c>false</c>.</returns>
+        public static bool IsTemplateEncoding(NodeEncodingType kind)
+        {
+            return kind == NodeEncodingType.TemplatedNode;
+        }
     }
 }

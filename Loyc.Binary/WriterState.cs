@@ -23,8 +23,8 @@ namespace Loyc.Binary
             this.stringList = new List<string>();
             this.templates = new List<NodeTemplate>();
             this.templateTable = new Dictionary<NodeTemplate, int>();
-            this.nodes = new List<Pair<NodeEncodingType, IReadOnlyList<LNode>>>();
-            this.nodeTable = new Dictionary<LNode, int>();
+            this.nodes = new List<Pair<NodeEncoding, IReadOnlyList<LNode>>>();
+            this.nodeTable = new Dictionary<LNode, int>(new ClassifyingLNodeComparer());
         }
 
         /// <summary>
@@ -51,13 +51,13 @@ namespace Loyc.Binary
         /// <summary>
         /// Gets the encoded loyc tree's list of nodes.
         /// </summary>
-        public IReadOnlyList<Pair<NodeEncodingType, IReadOnlyList<LNode>>> Nodes
+        public IReadOnlyList<Pair<NodeEncoding, IReadOnlyList<LNode>>> Nodes
         {
             get { return nodes; }
         }
 
         private Dictionary<LNode, int> nodeTable;
-        private List<Pair<NodeEncodingType, IReadOnlyList<LNode>>> nodes;
+        private List<Pair<NodeEncoding, IReadOnlyList<LNode>>> nodes;
 
         private static int GetOrAddIndex<T>(T Value, Dictionary<T, int> Table, List<T> Items)
         {
@@ -162,39 +162,51 @@ namespace Loyc.Binary
 
                 var encoder = GetEncoder(Node);
                 var template = encoder.GetTemplate(this, Node);
-                if (template != null)
-                {
-                    GetIndex(template);
-                }
+                int templateIndex = template == null ? 0 : GetIndex(template);
 
                 int index = nodeTable.Count;
-                GetNodeTable(encoder).Add(Node);
+                GetNodeTable(encoder, templateIndex).Add(Node);
                 nodeTable[Node] = index;
                 return index;
             }
         }
 
-        private List<LNode> GetNodeTable(BinaryNodeEncoder Encoder)
+        private List<LNode> GetNodeTable(BinaryNodeEncoder Encoder, int TemplateIndex)
         {
-            if (nodes.Count == 0
-                || nodes[nodes.Count - 1].Item1 != Encoder.EncodingType)
+            var encodingType = Encoder.EncodingType;
+            var encoding = NodeEncoding.IsTemplateEncoding(encodingType)
+                ? new NodeEncoding(TemplateIndex)
+                : new NodeEncoding(encodingType);
+
+            if (nodes.Count == 0)
             {
-                var newTable = new List<LNode>();
-                nodes.Add(new Pair<NodeEncodingType, IReadOnlyList<LNode>>(Encoder.EncodingType, newTable));
-                return newTable;
+                return CreateNewNodeTable(encoding);
+            }
+            
+            var lastNodeTable = nodes[nodes.Count - 1];
+            if (lastNodeTable.Item1.Equals(encoding))
+            {
+                return (List<LNode>)lastNodeTable.Item2;
             }
             else
             {
-                return (List<LNode>)nodes[nodes.Count - 1].Item2;
+                return CreateNewNodeTable(encoding);
             }
         }
 
+        private List<LNode> CreateNewNodeTable(NodeEncoding Encoding)
+        {
+            var newTable = new List<LNode>();
+            nodes.Add(new Pair<NodeEncoding, IReadOnlyList<LNode>>(Encoding, newTable));
+            return newTable;
+        }
+
         /// <summary>
-        /// Gets a node encoder for the given node.
+        /// Gets an encoder for a node that is not a literal.
         /// </summary>
-        /// <param name="Node">The node to encode.</param>
-        /// <returns>A binary node encoder.</returns>
-        public BinaryNodeEncoder GetEncoder(LNode Node)
+        /// <param name="Node">The node to get an encoder for.</param>
+        /// <returns>An encoder.</returns>
+        public static BinaryNodeEncoder GetNonLiteralEncoder(LNode Node)
         {
             if (Node.HasAttrs)
             {
@@ -217,6 +229,20 @@ namespace Loyc.Binary
             }
             else
             {
+                throw new NotSupportedException(
+                    "No suitable non-literal encoder for node '" + Node.Print() + "'.");
+            }
+        }
+
+        /// <summary>
+        /// Gets a node encoder for the given node.
+        /// </summary>
+        /// <param name="Node">The node to encode.</param>
+        /// <returns>A binary node encoder.</returns>
+        public BinaryNodeEncoder GetEncoder(LNode Node)
+        {
+            if (Node.IsLiteral && !Node.HasAttrs)
+            {
                 object nodeVal = Node.Value;
                 if (nodeVal == null)
                 {
@@ -235,6 +261,10 @@ namespace Loyc.Binary
                             "No suitable encoder for node '" + Node.Print() + "'.");
                     }
                 }
+            }
+            else
+            {
+                return GetNonLiteralEncoder(Node);
             }
         }
     }

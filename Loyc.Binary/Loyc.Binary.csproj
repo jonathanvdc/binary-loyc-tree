@@ -56,6 +56,8 @@
     <Compile Include="NodeTemplateType.cs" />
     <Compile Include="ReaderState.cs" />
     <Compile Include="WriterState.cs" />
+    <Compile Include="ObjectReferenceEqualityComparer.cs" />
+    <Compile Include="ClassifyingLNodeComparer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

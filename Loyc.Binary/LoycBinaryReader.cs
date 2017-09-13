@@ -82,7 +82,7 @@ namespace Loyc.Binary
         public IReadOnlyDictionary<NodeEncodingType, Func<LoycBinaryReader, ReaderState, LNode>> LiteralEncodings { get; private set; }
 
         /// <summary>
-        /// Gtes the mapping of node template types to node template parsers that this binary reader uses.
+        /// Gets the mapping of node template types to node template parsers that this binary reader uses.
         /// </summary>
         public IReadOnlyDictionary<NodeTemplateType, Func<LoycBinaryReader, NodeTemplate>> TemplateParsers { get; private set; }
 
@@ -217,20 +217,27 @@ namespace Loyc.Binary
         /// Reads a symbol as defined in the symbol table.
         /// </summary>
         /// <returns></returns>
-        public string ReadSymbol()
+        private Symbol ReadSymbol(SymbolPool Pool)
         {
             int length = (int)ReadULeb128();
             byte[] data = Reader.ReadBytes(length);
-            return UTF8Encoding.UTF8.GetString(data);
+            return Pool.GetGlobalOrCreateHere(UTF8Encoding.UTF8.GetString(data));
         }
 
         /// <summary>
         /// Reads the symbol table.
         /// </summary>
         /// <returns></returns>
-        public IReadOnlyList<string> ReadSymbolTable()
+        public IReadOnlyList<Symbol> ReadSymbolTable()
         {
-            return ReadList(ReadSymbol);
+            var pool = new SymbolPool();
+            int length = (int)ReadULeb128();
+            var table = new Symbol[length];
+            for (int i = 0; i < length; i++)
+            {
+                table[i] = ReadSymbol(pool);
+            }
+            return table;
         }
 
         /// <summary>
@@ -239,7 +246,13 @@ namespace Loyc.Binary
         /// <returns></returns>
         public IReadOnlyList<NodeTemplate> ReadTemplateTable()
         {
-            return ReadList(ReadTemplateDefinition);
+            int length = (int)ReadULeb128();
+            var table = new NodeTemplate[length];
+            for (int i = 0; i < length; i++)
+            {
+                table[i] = ReadTemplateDefinition();
+            }
+            return table;
         }
 
         /// <summary>
@@ -279,7 +292,14 @@ namespace Loyc.Binary
         /// <returns></returns>
         public Symbol ReadSymbolReference(ReaderState State)
         {
-            return State.SymbolPool.GetGlobalOrCreateHere(ReadStringReference(State));
+            int index = (int)ReadULeb128();
+
+            if (index >= State.SymbolTable.Count)
+            {
+                throw new InvalidDataException("Symbol index out of bounds.");
+            }
+
+            return State.SymbolTable[index];
         }
 
         /// <summary>
@@ -289,14 +309,7 @@ namespace Loyc.Binary
         /// <returns></returns>
         public string ReadStringReference(ReaderState State)
         {
-            int index = (int)ReadULeb128();
-
-            if (index >= State.SymbolTable.Count)
-            {
-                throw new InvalidDataException("Symbol index out of bounds.");
-            }
-
-            return State.SymbolTable[index];
+            return ReadSymbolReference(State).Name;
         }
 
         /// <summary>
@@ -342,9 +355,18 @@ namespace Loyc.Binary
             int tableCount = (int)ReadULeb128();
             for (int i = 0; i < tableCount; i++)
             {
-                int tableSize = (int)ReadULeb128();
                 var encoding = ReadEncodingType();
-                ReadNodes(State, encoding, nodes, tableSize, nodes);
+                if (encoding == NodeEncodingType.TemplatedNode)
+                {
+                    var template = ReadTemplateReference(State);
+                    int tableSize = (int)ReadULeb128();
+                    ReadTemplatedNodes(State, nodes, tableSize, template);
+                }
+                else
+                {
+                    int tableSize = (int)ReadULeb128();
+                    ReadNodes(State, encoding, nodes, tableSize);
+                }
             }
             return nodes;
         }
@@ -360,44 +382,27 @@ namespace Loyc.Binary
         }
 
         /// <summary>
-        /// Reads a template-prefixed templated node.
-        /// </summary>
-        /// <param name="State"></param>
-        /// <param name="NodeTable"></param>
-        /// <returns></returns>
-        private LNode ReadTemplatedNode(ReaderState State, IReadOnlyList<LNode> NodeTable)
-        {
-            var template = ReadTemplateReference(State);
-            var args = new LNode[template.ArgumentCount];
-            for (int i = 0; i < args.Length; i++)
-            {
-                args[i] = ReadNodeReference(NodeTable);
-            }
-            return template.Instantiate(State, args);
-        }
-
-        /// <summary>
         /// Reads a list of nodes with the given encoding.
         /// </summary>
         private void ReadNodes(
             ReaderState State,
             NodeEncodingType Encoding,
-            IReadOnlyList<LNode> NodeTable,
-            int NumberOfNodesToRead,
-            List<LNode> TargetList)
+            List<LNode> NodeTable,
+            int NumberOfNodesToRead)
         {
-            if (Encoding == NodeEncodingType.TemplatedNode)
+            if (Encoding == NodeEncodingType.VariablyTemplatedNode)
             {
                 for (int i = 0; i < NumberOfNodesToRead; i++)
                 {
-                    TargetList.Add(ReadTemplatedNode(State, NodeTable));
+                    var template = ReadTemplateReference(State);
+                    ReadTemplatedNodes(State, NodeTable, 1, template);
                 }
             }
             else if (Encoding == NodeEncodingType.IdNode)
             {
                 for (int i = 0; i < NumberOfNodesToRead; i++)
                 {
-                    TargetList.Add(State.NodeFactory.Id(ReadSymbolReference(State)));
+                    NodeTable.Add(State.NodeFactory.Id(ReadSymbolReference(State)));
                 }
             }
             else
@@ -408,13 +413,31 @@ namespace Loyc.Binary
                 {
                     for (int i = 0; i < NumberOfNodesToRead; i++)
                     {
-                        TargetList.Add(parser(this, State));
+                        NodeTable.Add(parser(this, State));
                     }
                 }
                 else
                 {
                     throw new InvalidDataException("Unknown node encoding: '" + Encoding + "'.");
                 }
+            }
+        }
+
+        private void ReadTemplatedNodes(
+            ReaderState State,
+            List<LNode> NodeTable,
+            int NumberOfNodesToRead,
+            NodeTemplate Template)
+        {
+            int argCount = Template.ArgumentCount;
+            for (int i = 0; i < NumberOfNodesToRead; i++)
+            {
+                var args = new LNode[argCount];
+                for (int j = 0; j < args.Length; j++)
+                {
+                    args[j] = ReadNodeReference(NodeTable);
+                }
+                NodeTable.Add(Template.Instantiate(State, args));
             }
         }
 

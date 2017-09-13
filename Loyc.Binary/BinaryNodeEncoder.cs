@@ -103,7 +103,6 @@ namespace Loyc.Binary
                 (writer, state, node) =>
                 {
                     var template = new AttributeNodeTemplate(node.AttrCount);
-                    writer.WriteReference(state, template);
                     writer.WriteReference(state, node.WithoutAttrs());
                     foreach (var attr in node.Attrs)
                     {
@@ -120,7 +119,6 @@ namespace Loyc.Binary
                 (writer, state, node) =>
                 {
                     var template = new CallNodeTemplate(node.ArgCount);
-                    writer.WriteReference(state, template);
                     writer.WriteReference(state, node.Target);
                     foreach (var arg in node.Args)
                     {
@@ -138,7 +136,6 @@ namespace Loyc.Binary
                 {
                     int nodeTarget = state.GetIndex(node.Target.Name);
                     var template = new CallIdNodeTemplate(nodeTarget, node.ArgCount);
-                    writer.WriteReference(state, template);
                     foreach (var arg in node.Args)
                     {
                         writer.WriteReference(state, arg);

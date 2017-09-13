@@ -24,7 +24,7 @@ namespace Loyc.Binary
         /// <param name="writer">The binary writer to write data to.</param>
         /// <param name="encoders">A map of literal types to literal encoders.</param>
         public LoycBinaryWriter(
-            BinaryWriter writer, 
+            BinaryWriter writer,
             IReadOnlyDictionary<Type, BinaryNodeEncoder> encoders)
         {
             Writer = writer;
@@ -128,10 +128,10 @@ namespace Loyc.Binary
                     { typeof(char), BinaryNodeEncoder.CreateLiteralEncoder<char>(NodeEncodingType.Char, (writer, value) => writer.Write(value)) },
                     { typeof(bool), BinaryNodeEncoder.CreateLiteralEncoder<bool>(NodeEncodingType.Boolean, (writer, value) => writer.Write(value)) },
                     { typeof(string), BinaryNodeEncoder.CreateLiteralEncoder<string>(NodeEncodingType.String, (writer, state, value) => writer.WriteReference(state, value)) },
-                    { 
-                        typeof(BigInteger), 
+                    {
+                        typeof(BigInteger),
                         BinaryNodeEncoder.CreateLiteralEncoder<BigInteger>(
-                            NodeEncodingType.BigInteger, (writer, state, value) => writer.WriteBigInteger(value)) 
+                            NodeEncodingType.BigInteger, (writer, state, value) => writer.WriteBigInteger(value))
                     },
                     { typeof(@void), new BinaryNodeEncoder(NodeEncodingType.Void, (state, node) => null, (writer, state, node) => { }) }
                 };
@@ -207,10 +207,23 @@ namespace Loyc.Binary
         /// <summary>
         /// Writes the given encoding type to the output stream.
         /// </summary>
-        /// <param name="Encoding"></param>
+        /// <param name="Encoding">An encoding type.</param>
         public void WriteEncodingType(NodeEncodingType Encoding)
         {
             Writer.Write((byte)Encoding);
+        }
+
+        /// <summary>
+        /// Writes the given table encoding to the output stream.
+        /// </summary>
+        /// <param name="Encoding">An encoding.</param>
+        public void WriteEncoding(NodeEncoding Encoding)
+        {
+            WriteEncodingType(Encoding.Kind);
+            if (Encoding.HasTemplate)
+            {
+                WriteULeb128((uint)Encoding.TemplateIndex);
+            }
         }
 
         /// <summary>
@@ -273,33 +286,108 @@ namespace Loyc.Binary
         public void WriteNodeTable(
             WriterState State)
         {
-            var nodeTable = State.Nodes;
+            var nodeTable = OptimizeNodeTable(State);
             WriteULeb128((uint)nodeTable.Count);
+
             foreach (var subTable in nodeTable)
             {
-                WriteULeb128((uint)subTable.Item2.Count);
-                WriteEncodingType(subTable.Item1);
-                foreach (var node in subTable.Item2)
+                var encoding = subTable.Item1;
+                if (encoding.Kind == NodeEncodingType.VariablyTemplatedNode)
                 {
-                    State.GetEncoder(node).Encode(this, State, node);
+                    WriteVariablyTemplatedNodeTable(State, subTable.Item2);
+                }
+                else
+                {
+                    WriteEncoding(encoding);
+                    WriteULeb128((uint)subTable.Item2.Count);
+                    foreach (var node in subTable.Item2)
+                    {
+                        State.GetEncoder(node).Encode(this, State, node);
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Categorizes the given node and its descendants into clusters of literal
-        /// and id types.
+        /// Optimizes the given writer state's node table by merging subtables.
+        /// </summary>
+        /// <param name="State"></param>
+        /// <returns></returns>
+        private static IReadOnlyList<Pair<NodeEncoding, IReadOnlyList<LNode>>> OptimizeNodeTable(
+            WriterState State)
+        {
+            var results = new List<Pair<NodeEncoding, IReadOnlyList<LNode>>>();
+            var varTemplatedNodeList = new List<LNode>();
+            foreach (var subTable in State.Nodes)
+            {
+                var encoding = subTable.Item1;
+                if (subTable.Item2.Count <= 2
+                    && encoding.Kind == NodeEncodingType.TemplatedNode)
+                {
+                    encoding = new NodeEncoding(
+                        NodeEncodingType.VariablyTemplatedNode,
+                        encoding.TemplateIndex);
+                }
+
+                if (encoding.Kind == NodeEncodingType.VariablyTemplatedNode)
+                {
+                    varTemplatedNodeList.AddRange(subTable.Item2);
+                }
+                else
+                {
+                    // Flush the variably templated node table that has accumulated.
+                    if (varTemplatedNodeList.Count > 0)
+                    {
+                        results.Add(new Pair<NodeEncoding, IReadOnlyList<LNode>>(
+                            new NodeEncoding(NodeEncodingType.VariablyTemplatedNode),
+                            varTemplatedNodeList));
+                        varTemplatedNodeList = new List<LNode>();
+                    }
+
+                    results.Add(subTable);
+                }
+            }
+            if (varTemplatedNodeList.Count > 0)
+            {
+                results.Add(new Pair<NodeEncoding, IReadOnlyList<LNode>>(
+                    new NodeEncoding(NodeEncodingType.VariablyTemplatedNode),
+                    varTemplatedNodeList));
+            }
+            return results;
+        }
+
+        private void WriteVariablyTemplatedNodeTable(
+            WriterState State,
+            IReadOnlyList<LNode> Contents)
+        {
+            WriteEncodingType(NodeEncodingType.VariablyTemplatedNode);
+            WriteULeb128((uint)Contents.Count);
+            foreach (var node in Contents)
+            {
+                var encoder = State.GetEncoder(node);
+                WriteReference(State, encoder.GetTemplate(State, node));
+                encoder.Encode(this, State, node);
+            }
+        }
+
+        /// <summary>
+        /// Categorizes the given node and its descendants into clusters.
         /// </summary>
         /// <param name="Node">The node to categorize.</param>
         /// <param name="Literals">A dictionary that maps literal types to nodes.</param>
         /// <param name="NullLiterals">A list of null literal nodes.</param>
         /// <param name="IdNodes">A list of id nodes.</param>
-        private static void ClusterLiteralsByType(
+        /// <param name="TemplateInstances">A dictionary that maps templates to template instances.</param>
+        /// <param name="State">The writer state.</param>
+        private static void ClusterByType(
             LNode Node,
             Dictionary<Type, List<LNode>> Literals,
             List<LNode> NullLiterals,
-            List<LNode> IdNodes)
+            List<LNode> IdNodes,
+            Dictionary<NodeTemplate, List<LNode>> TemplateInstances,
+            WriterState State)
         {
+            List<LNode> nodeList;
             if (Node.HasAttrs || Node.IsCall)
             {
                 // We can't assign this node to a cluster, but we
@@ -308,23 +396,40 @@ namespace Loyc.Binary
                 {
                     foreach (var attr in Node.Attrs)
                     {
-                        ClusterLiteralsByType(attr, Literals, NullLiterals, IdNodes);
+                        ClusterByType(
+                            attr, Literals, NullLiterals,
+                            IdNodes, TemplateInstances, State);
                     }
-                    ClusterLiteralsByType(Node.WithoutAttrs(), Literals, NullLiterals, IdNodes);
+
+                    ClusterByType(
+                        Node.WithoutAttrs(), Literals, NullLiterals,
+                        IdNodes, TemplateInstances, State);
                 }
                 else if (Node.IsCall)
                 {
-                    ClusterLiteralsByType(Node.Target, Literals, NullLiterals, IdNodes);
+                    ClusterByType(
+                        Node.Target, Literals, NullLiterals,
+                        IdNodes, TemplateInstances, State);
+
                     foreach (var args in Node.Args)
                     {
-                        ClusterLiteralsByType(args, Literals, NullLiterals, IdNodes);
+                        ClusterByType(
+                            args, Literals, NullLiterals,
+                            IdNodes, TemplateInstances, State);
                     }
                 }
-                return;
-            }
 
-            List<LNode> nodeList;
-            if (Node.IsLiteral)
+                var template = WriterState
+                    .GetNonLiteralEncoder(Node)
+                    .GetTemplate(State, Node);
+
+                if (!TemplateInstances.TryGetValue(template, out nodeList))
+                {
+                    nodeList = new List<LNode>();
+                    TemplateInstances[template] = nodeList;
+                }
+            }
+            else if (Node.IsLiteral)
             {
                 if (Node.Value == null)
                 {
@@ -376,9 +481,12 @@ namespace Loyc.Binary
             var literals = new Dictionary<Type, List<LNode>>();
             var nullLiterals = new List<LNode>();
             var idNodes = new List<LNode>();
+            var templateInstances = new Dictionary<NodeTemplate, List<LNode>>();
             foreach (var node in Nodes)
             {
-                ClusterLiteralsByType(node, literals, nullLiterals, idNodes);
+                ClusterByType(
+                    node, literals, nullLiterals,
+                    idNodes, templateInstances, State);
             }
 
             // Add clustered nodes to the node table.
@@ -391,6 +499,13 @@ namespace Loyc.Binary
                 State.GetIndex(node);
             }
             foreach (var kvPair in literals)
+            {
+                foreach (var node in kvPair.Value)
+                {
+                    State.GetIndex(node);
+                }
+            }
+            foreach (var kvPair in templateInstances)
             {
                 foreach (var node in kvPair.Value)
                 {
