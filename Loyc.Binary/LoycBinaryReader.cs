@@ -344,10 +344,7 @@ namespace Loyc.Binary
             {
                 int tableSize = (int)ReadULeb128();
                 var encoding = ReadEncodingType();
-                for (int j = 0; j < tableSize; j++)
-                {
-                    nodes.Add(ReadNode(State, encoding, nodes));
-                }
+                ReadNodes(State, encoding, nodes, tableSize, nodes);
             }
             return nodes;
         }
@@ -380,35 +377,44 @@ namespace Loyc.Binary
         }
 
         /// <summary>
-        /// Reads a node with the given encoding.
+        /// Reads a list of nodes with the given encoding.
         /// </summary>
-        /// <param name="State"></param>
-        /// <param name="Encoding"></param>
-        /// <param name="NodeTable"></param>
-        /// <returns></returns>
-        private LNode ReadNode(
+        private void ReadNodes(
             ReaderState State,
             NodeEncodingType Encoding,
-            IReadOnlyList<LNode> NodeTable)
+            IReadOnlyList<LNode> NodeTable,
+            int NumberOfNodesToRead,
+            List<LNode> TargetList)
         {
             if (Encoding == NodeEncodingType.TemplatedNode)
             {
-                return ReadTemplatedNode(State, NodeTable);
+                for (int i = 0; i < NumberOfNodesToRead; i++)
+                {
+                    TargetList.Add(ReadTemplatedNode(State, NodeTable));
+                }
             }
             else if (Encoding == NodeEncodingType.IdNode)
             {
-                return State.NodeFactory.Id(ReadSymbolReference(State));
-            }
-
-            Func<LoycBinaryReader, ReaderState, LNode> parser;
-
-            if (LiteralEncodings.TryGetValue(Encoding, out parser))
-            {
-                return parser(this, State);
+                for (int i = 0; i < NumberOfNodesToRead; i++)
+                {
+                    TargetList.Add(State.NodeFactory.Id(ReadSymbolReference(State)));
+                }
             }
             else
             {
-                throw new InvalidDataException("Unknown node encoding: '" + Encoding + "'.");
+                Func<LoycBinaryReader, ReaderState, LNode> parser;
+
+                if (LiteralEncodings.TryGetValue(Encoding, out parser))
+                {
+                    for (int i = 0; i < NumberOfNodesToRead; i++)
+                    {
+                        TargetList.Add(parser(this, State));
+                    }
+                }
+                else
+                {
+                    throw new InvalidDataException("Unknown node encoding: '" + Encoding + "'.");
+                }
             }
         }
 
