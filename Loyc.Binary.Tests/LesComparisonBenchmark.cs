@@ -1,7 +1,5 @@
 ﻿// This benchmark requires EC#, which we don't reference right now.
 
-/*
-
 using Loyc.Ecs;
 using Loyc.MiniTest;
 using Loyc.Syntax;
@@ -52,7 +50,7 @@ namespace Loyc.Binary.Tests
         /// Gets the number of round trips that are performed for every file.
         /// This number should be adequately high to reduce timer noise.
         /// </summary>
-        private const int TimedRoundTripCount = 200;
+        private const int TimedRoundTripCount = 50;
 
         private RoundTripPerformance MakeBltRoundTrip(LNode[] Nodes)
         {
@@ -96,7 +94,7 @@ namespace Loyc.Binary.Tests
             string[] data = null;
             for (int i = 0; i < TimedRoundTripCount; i++)
             {
-                data = Nodes.Select(LesLanguageService.Value.Print).ToArray();
+                data = Nodes.Select(n => LesLanguageService.Value.Print(n)).ToArray();
             }
 
             var writePerf = timer.Elapsed;
@@ -173,16 +171,18 @@ namespace Loyc.Binary.Tests
 
         public void BenchmarkBltPerformance(string InputDirectory)
         {
-            Console.WriteLine("Note: the following benchmarks are LES/BLT round-trips that have been performed 200 times.");
+            Console.WriteLine("Note: the following benchmarks are LES/BLT round-trips that have been performed " + TimedRoundTripCount + " times.");
             Console.WriteLine();
 
             string[] allFiles = GrabCsFiles(InputDirectory);
 
             BenchmarkBltPerformance(allFiles[0], false);
 
-            var aggregate = allFiles.Select(item => BenchmarkBltPerformance(item, false))
-                                    .Aggregate(Tuple.Create(Enumerable.Empty<LNode>(), new RoundTripPerformance(), new RoundTripPerformance()),
-                                               (aggr, item) => Tuple.Create(aggr.Item1.Concat(item.Item1), aggr.Item2 + item.Item2, aggr.Item3 + item.Item3));
+            var aggregate = allFiles
+                .Select(item => BenchmarkBltPerformance(item, false))
+                .Aggregate(
+                    Tuple.Create(Enumerable.Empty<LNode>(), new RoundTripPerformance(), new RoundTripPerformance()),
+                   (aggr, item) => Tuple.Create(aggr.Item1.Concat(item.Item1), aggr.Item2 + item.Item2, aggr.Item3 + item.Item3));
 
             Console.WriteLine("Sum of individual read/writes:");
             PublishComparison(aggregate.Item2, aggregate.Item3);
@@ -197,9 +197,10 @@ namespace Loyc.Binary.Tests
         [Test]
         public void BenchmarkBltPerformanceLoycBinary()
         {
-            BenchmarkBltPerformance("..\\..\\..\\Loyc.Binary\\");
+            BenchmarkBltPerformance("Loyc.Binary");
         }
 
+        /*
         /// <summary>
         /// Benchmarks and compares LES/BLT performance.
         /// Loyc.Collections is parsed by the EC# parser, and then
@@ -208,9 +209,8 @@ namespace Loyc.Binary.Tests
         [Test]
         public void BenchmarkBltPerformanceLoycCollections()
         {
-            BenchmarkBltPerformance("..\\..\\..\\Loyc.Collections\\");
+            BenchmarkBltPerformance("Loyc.Collections");
         }
+        */
     }
 }
-
-*/
